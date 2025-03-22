@@ -53,6 +53,8 @@ const startColor = ref('#34d5af'); // 默认红色
 const endColor = ref('#a689c8'); // 默认紫色
 const musicStartColor = ref('#ff0000'); // 默认红色
 const musicEndColor = ref('#800080'); // 默认紫色
+const loadingProgress = ref(0);
+const isLoading = ref(true);
 
 const backgroundImages = [
 	"/images/33.jpg",
@@ -63,46 +65,34 @@ let currentBackgroundIndex = ref(0);
 
 // 示例图片数据
 const photos = ref([
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
-	{ url: "/images/photo1.svg", title: "Photo 1" },
-	{ url: "/images/photo2.svg", title: "Photo 2" },
-	{ url: "/images/photo3.svg", title: "Photo 3" },
-	{ url: "/images/photo4.svg", title: "Photo 4" },
+	{ url: "/images/1W7A8049.jpg", title: "Photo 1" },
+	{ url: "/images/1W7A8078.jpg", title: "Photo 2" },
+	{ url: "/images/1W7A7999.jpg", title: "Photo 3" },
+	{ url: "/images/1W7A8012.jpg", title: "Photo 4" },
+	{ url: "/images/1W7A8023.jpg", title: "Photo 5" },
+	{ url: "/images/1W7A8062.jpg", title: "Photo 6" },
+	{ url: "/images/1W7A8071.jpg", title: "Photo 7" },
+	{ url: "/images/1W7A8080.jpg", title: "Photo 8" },
+	{ url: "/images/1W7A8083.jpg", title: "Photo 9" },
+	{ url: "/images/1W7A8049.jpg", title: "Photo 1" },
+	{ url: "/images/1W7A8078.jpg", title: "Photo 2" },
+	{ url: "/images/1W7A7999.jpg", title: "Photo 3" },
+	{ url: "/images/1W7A8012.jpg", title: "Photo 4" },
+	{ url: "/images/1W7A8023.jpg", title: "Photo 5" },
+	{ url: "/images/1W7A8062.jpg", title: "Photo 6" },
+	{ url: "/images/1W7A8071.jpg", title: "Photo 7" },
+	{ url: "/images/1W7A8080.jpg", title: "Photo 8" }, { url: "/images/1W7A8049.jpg", title: "Photo 1" },
+	{ url: "/images/1W7A8078.jpg", title: "Photo 2" },
+	{ url: "/images/1W7A7999.jpg", title: "Photo 3" },
+	{ url: "/images/1W7A8012.jpg", title: "Photo 4" },
+	{ url: "/images/1W7A8023.jpg", title: "Photo 5" },
+	{ url: "/images/1W7A8062.jpg", title: "Photo 6" },
+	{ url: "/images/1W7A8071.jpg", title: "Photo 7" },
+	{ url: "/images/1W7A8080.jpg", title: "Photo 8" },
+	{ url: "/images/1W7A8083.jpg", title: "Photo 9" },
+	{ url: "/images/1W7A8049.jpg", title: "Photo 1" },
+	{ url: "/images/1W7A8078.jpg", title: "Photo 2" },
+	{ url: "/images/1W7A7999.jpg", title: "Photo 3" },
 ]);
 
 const tracks = ref([
@@ -123,6 +113,10 @@ let mouse = new THREE.Vector2();
 
 // 在 script setup 中定义 textureLoader
 const textureLoader = new THREE.TextureLoader();
+
+const visibleMeshes = ref(new Set());
+const lastUpdateTime = ref(0);
+const updateInterval = 100; // 每100ms更新一次可见性
 
 // 初始化Three.js场景
 const initThreeJS = () => {
@@ -199,78 +193,195 @@ const onWindowResize = () => {
 	renderer.setSize(window.innerWidth, window.innerHeight);
 };
 
+const optimizeTexture = (texture) => {
+	// 设置纹理的压缩和优化参数
+	texture.minFilter = THREE.LinearFilter;
+	texture.magFilter = THREE.LinearFilter;
+	texture.format = THREE.RGBAFormat;
+	texture.generateMipmaps = true;
+
+	// 限制纹理大小
+	const maxSize = 1024;
+	if (texture.image.width > maxSize || texture.image.height > maxSize) {
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+
+		// 计算新的尺寸
+		let width = texture.image.width;
+		let height = texture.image.height;
+		if (width > height) {
+			height = Math.round((height * maxSize) / width);
+			width = maxSize;
+		} else {
+			width = Math.round((width * maxSize) / height);
+			height = maxSize;
+		}
+
+		canvas.width = width;
+		canvas.height = height;
+
+		// 绘制并压缩图片
+		ctx.drawImage(texture.image, 0, 0, width, height);
+
+		// 更新纹理
+		texture.image = canvas;
+		texture.needsUpdate = true;
+	}
+
+	return texture;
+};
+
 // 在 createPhotoMeshes 中应用标准材质
 const createPhotoMeshes = () => {
-	photos.value.forEach((photo, index) => {
-		const textureLoader = new THREE.TextureLoader();
-		textureLoader.load(
-			photo.url,
-			(texture) => {
-				texture.colorSpace = THREE.SRGBColorSpace;
-				const geometry = new THREE.PlaneGeometry(0.8, 0.6);
-				const material = new THREE.MeshStandardMaterial({
-					map: texture,
-					side: THREE.DoubleSide,
-				});
-				const mesh = new THREE.Mesh(geometry, material);
+	const totalPhotos = photos.value.length;
+	let loadedPhotos = 0;
 
-				// 使用改进的斐波那契球面分布算法
-				const numPhotos = photos.value.length;
-				const radius = 4;
-				const goldenRatio = (1 + Math.sqrt(5)) / 2;
+	// 创建加载进度显示
+	const progressDiv = document.createElement('div');
+	progressDiv.style.position = 'fixed';
+	progressDiv.style.top = '50%';
+	progressDiv.style.left = '50%';
+	progressDiv.style.transform = 'translate(-50%, -50%)';
+	progressDiv.style.zIndex = '1000';
+	progressDiv.style.color = '#fff';
+	progressDiv.style.fontSize = '24px';
+	progressDiv.style.textAlign = 'center';
+	progressDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
+	progressDiv.style.padding = '20px';
+	progressDiv.style.borderRadius = '10px';
+	document.body.appendChild(progressDiv);
 
-				const i = index + 1;
-				const phi = Math.acos(1 - (2 * i - 0.5) / (numPhotos + 1));
-				const theta = (2 * Math.PI * i) / goldenRatio;
+	const updateProgress = () => {
+		loadedPhotos++;
+		const progress = (loadedPhotos / totalPhotos) * 100;
+		loadingProgress.value = progress;
+		progressDiv.innerHTML = `加载中... ${Math.round(progress)}%`;
 
-				mesh.position.x = radius * Math.sin(phi) * Math.cos(theta);
-				mesh.position.y = radius * Math.sin(phi) * Math.sin(theta);
-				mesh.position.z = radius * Math.cos(phi);
-				mesh.lookAt(new THREE.Vector3(0, 0, 0));
+		if (loadedPhotos === totalPhotos) {
+			setTimeout(() => {
+				progressDiv.remove();
+				isLoading.value = false;
+			}, 1000);
+		}
+	};
 
-				scene.add(mesh);
-				photoMeshes.push(mesh);
-			},
-			// 加载进度回调
-			(xhr) => {
-				console.log(`${photo.title}: ${(xhr.loaded / xhr.total) * 100}% loaded`);
-			},
-			// 错误回调
-			(error) => {
-				console.error(`Error loading texture for ${photo.title}:`, error);
-				// 加载失败时使用默认纹理
-				const defaultMaterial = new THREE.MeshStandardMaterial({
-					color: 0x888888,
-					side: THREE.DoubleSide,
-				});
-				const geometry = new THREE.PlaneGeometry(0.8, 0.6);
-				const mesh = new THREE.Mesh(geometry, defaultMaterial);
-				// 使用相同的位置计算逻辑
-				const numPhotos = photos.value.length;
-				const radius = 4;
-				const goldenRatio = (1 + Math.sqrt(5)) / 2;
-				const i = index + 1;
-				const phi = Math.acos(1 - (2 * i - 0.5) / (numPhotos + 1));
-				const theta = (2 * Math.PI * i) / goldenRatio;
-				mesh.position.x = radius * Math.sin(phi) * Math.cos(theta);
-				mesh.position.y = radius * Math.sin(phi) * Math.sin(theta);
-				mesh.position.z = radius * Math.cos(phi);
-				mesh.lookAt(new THREE.Vector3(0, 0, 0));
-				scene.add(mesh);
-				photoMeshes.push(mesh);
-			}
-		);
+	// 分批加载图片
+	const batchSize = 3; // 每批加载3张图片
+	const loadBatch = (startIndex) => {
+		const endIndex = Math.min(startIndex + batchSize, totalPhotos);
+		const batch = photos.value.slice(startIndex, endIndex);
+
+		batch.forEach((photo, batchIndex) => {
+			const textureLoader = new THREE.TextureLoader();
+			textureLoader.load(
+				photo.url,
+				(texture) => {
+					texture.colorSpace = THREE.SRGBColorSpace;
+					// 优化纹理
+					optimizeTexture(texture);
+
+					const geometry = new THREE.PlaneGeometry(0.8, 0.6);
+					const material = new THREE.MeshStandardMaterial({
+						map: texture,
+						side: THREE.DoubleSide,
+					});
+					const mesh = new THREE.Mesh(geometry, material);
+
+					// 使用改进的斐波那契球面分布算法
+					const numPhotos = photos.value.length;
+					const radius = 4;
+					const goldenRatio = (1 + Math.sqrt(5)) / 2;
+
+					const i = startIndex + batchIndex + 1;
+					const phi = Math.acos(1 - (2 * i - 0.5) / (numPhotos + 1));
+					const theta = (2 * Math.PI * i) / goldenRatio;
+
+					mesh.position.x = radius * Math.sin(phi) * Math.cos(theta);
+					mesh.position.y = radius * Math.sin(phi) * Math.sin(theta);
+					mesh.position.z = radius * Math.cos(phi);
+					mesh.lookAt(new THREE.Vector3(0, 0, 0));
+
+					scene.add(mesh);
+					photoMeshes.push(mesh);
+					updateProgress();
+
+					// 如果当前批次加载完成，加载下一批
+					if (batchIndex === batch.length - 1 && endIndex < totalPhotos) {
+						setTimeout(() => loadBatch(endIndex), 100);
+					}
+				},
+				(xhr) => {
+					console.log(`${photo.title}: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+				},
+				(error) => {
+					console.error(`Error loading texture for ${photo.title}:`, error);
+					const defaultMaterial = new THREE.MeshStandardMaterial({
+						color: 0x888888,
+						side: THREE.DoubleSide,
+					});
+					const geometry = new THREE.PlaneGeometry(0.8, 0.6);
+					const mesh = new THREE.Mesh(geometry, defaultMaterial);
+					const numPhotos = photos.value.length;
+					const radius = 4;
+					const goldenRatio = (1 + Math.sqrt(5)) / 2;
+					const i = startIndex + batchIndex + 1;
+					const phi = Math.acos(1 - (2 * i - 0.5) / (numPhotos + 1));
+					const theta = (2 * Math.PI * i) / goldenRatio;
+					mesh.position.x = radius * Math.sin(phi) * Math.cos(theta);
+					mesh.position.y = radius * Math.sin(phi) * Math.sin(theta);
+					mesh.position.z = radius * Math.cos(phi);
+					mesh.lookAt(new THREE.Vector3(0, 0, 0));
+					scene.add(mesh);
+					photoMeshes.push(mesh);
+					updateProgress();
+				}
+			);
+		});
+	};
+
+	// 开始加载第一批
+	loadBatch(0);
+};
+
+// 更新可见性检查
+const updateVisibility = () => {
+	const currentTime = Date.now();
+	if (currentTime - lastUpdateTime.value < updateInterval) return;
+	lastUpdateTime.value = currentTime;
+
+	const frustum = new THREE.Frustum();
+	frustum.setFromProjectionMatrix(
+		new THREE.Matrix4().multiplyMatrices(
+			camera.projectionMatrix,
+			camera.matrixWorldInverse
+		)
+	);
+
+	photoMeshes.forEach((mesh, index) => {
+		const isVisible = frustum.containsPoint(mesh.position);
+		if (isVisible) {
+			visibleMeshes.value.add(index);
+			mesh.visible = true;
+		} else {
+			visibleMeshes.value.delete(index);
+			mesh.visible = false;
+		}
 	});
 };
 
-// 恢复原始的 animate 函数逻辑
+// 修改 animate 函数
 const animate = () => {
 	requestAnimationFrame(animate);
+
+	// 只在非列表模式下更新可见性
+	if (!isListMode.value) {
+		updateVisibility();
+	}
 
 	// 更新射线
 	raycaster.setFromCamera(mouse, camera);
 
-	// 计算物体与射线的交集
+	// 检查所有物体的射线相交
 	const intersects = raycaster.intersectObjects(photoMeshes);
 
 	// 重置所有物体的状态
@@ -279,7 +390,7 @@ const animate = () => {
 			.to({ x: 1, y: 1, z: 1 }, 300)
 			.easing(TWEEN.Easing.Quadratic.Out)
 			.start();
-		mesh.material.emissive.setHex(0x000000); // 移除发光
+		mesh.material.emissive.setHex(0x000000);
 	});
 
 	// 对于每个相交的物体，设置放大和发光效果
@@ -288,16 +399,18 @@ const animate = () => {
 			.to({ x: 1.5, y: 1.5, z: 1.5 }, 300)
 			.easing(TWEEN.Easing.Quadratic.Out)
 			.start();
-		intersects[i].object.material.emissive.setHex(0x444444); // 设置发光
-		intersects[i].object.material.color.setHex(0xffffff); // 设置为白色以模拟边框阴影
+		intersects[i].object.material.emissive.setHex(0x444444);
+		intersects[i].object.material.color.setHex(0xffffff);
 	}
+
 	// 自动旋转背景球体
 	if (isRotating.value) {
-		backgroundSphere.rotation.y += rotationSpeed.value; // 背景球体自转
-		// 自动旋转图片围绕球体的Y轴
-		photoMeshes.forEach((mesh) => {
+		backgroundSphere.rotation.y += rotationSpeed.value;
+		// 只旋转可见的图片
+		const visiblePhotoMeshes = photoMeshes.filter((mesh, index) => visibleMeshes.value.has(index));
+		visiblePhotoMeshes.forEach((mesh) => {
 			mesh.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationSpeed.value);
-			mesh.lookAt(new THREE.Vector3(0, 0, 0)); // 确保图片始终面向球体中心
+			mesh.lookAt(new THREE.Vector3(0, 0, 0));
 		});
 	}
 
@@ -529,11 +642,25 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	window.removeEventListener("resize", handleResize);
 	if (renderer) {
+		// 清理所有纹理
+		photoMeshes.forEach(mesh => {
+			if (mesh.material.map) {
+				mesh.material.map.dispose();
+			}
+			mesh.material.dispose();
+			mesh.geometry.dispose();
+		});
+		// 清理背景纹理
+		if (backgroundSphere && backgroundSphere.material.map) {
+			backgroundSphere.material.map.dispose();
+		}
+		if (backgroundSphere) {
+			backgroundSphere.material.dispose();
+			backgroundSphere.geometry.dispose();
+		}
 		renderer.dispose();
 	}
 	audioContext.close();
-
-	// 清除定时器
 	clearInterval(autoSwitchInterval);
 });
 
